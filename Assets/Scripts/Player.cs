@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using Photon.Pun;
 using UnityEngine;
 
 public class Player : MonoBehaviour
@@ -16,65 +18,57 @@ public class Player : MonoBehaviour
 
     void Start()
     {
-        //if (GetComponent<PhotonView>().IsMine)
-        //{
-        //    rig = GetComponent<Rigidbody2D>();
-        //}
-
-        rig = GetComponent<Rigidbody2D>();
-        animator = GetComponent<Animator>();
+        if (GetComponent<PhotonView>().IsMine)
+        {
+            rig = GetComponent<Rigidbody2D>();
+            animator = GetComponent<Animator>();
+            Camera.main.transform.SetParent(transform);
+            Camera.main.transform.position = transform.position + (Vector3.up) + transform.forward * -10;
+        }
     }
 
     void Update()
     {
-        //if (GetComponent<PhotonView>().IsMine)
-        //{
-        //    rig.velocity = new Vector2(Input.GetAxis("Horizontal") * speed, rig.velocity.y);
-        //}
+        if (GetComponent<PhotonView>().IsMine)
+        {
+            movePlayer();
+            Jump();
+            Fall();
+            velocity = rig.velocity.y;
+        }
 
-        movePlayer();
-        Jump();
-        Fall();
-
-        velocity = rig.velocity.y;
     }
 
     void movePlayer()
     {
-        float inputValue = Input.GetAxisRaw("Horizontal");
+        rig.velocity = (transform.right * speed * Input.GetAxisRaw("Horizontal")) + (transform.up * rig.velocity.y);
 
-        switch (inputValue)
-        {
-            case -1:
-                rig.AddForce(Vector2.left * speed);
-                animator.SetBool("Running", true);
-                FlipSprite(true);
-                break;
-            case 0:
-                animator.SetBool("Running", false);
-                break;
-            case 1:
-                rig.AddForce(Vector2.right * speed);
-                animator.SetBool("Running", true);
-                FlipSprite(false);
-                break;
-        }
+        bool isRunning = Mathf.Abs(rig.velocity.x) > 0.1f;
+        animator.SetBool("Running", isRunning);
+
+        if (rig.velocity.x > 0.1f)
+            GetComponent<PhotonView>().RPC("RotateSprite", RpcTarget.All, false);
+        else if (rig.velocity.x < 0.1f)
+            GetComponent<PhotonView>().RPC("RotateSprite", RpcTarget.All, true);
     }
-    private void FlipSprite(bool flipX)
+
+    [PunRPC]
+    private void RotateSprite(bool rotate)
     {
-        Vector3 scale = transform.localScale;
-        scale.x = flipX ? -2.5f : 2.5f;
-        transform.localScale = scale;
+        GetComponent<SpriteRenderer>().flipX = rotate;
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (collision.gameObject.CompareTag("Ground"))
+        if (GetComponent<PhotonView>().IsMine)
         {
-            isGrounded = true;
-            animator.SetBool("Falling", false);
-            animator.SetBool("Jumping", false);
-            
+            if (collision.gameObject.CompareTag("Ground"))
+            {
+                isGrounded = true;
+                animator.SetBool("Falling", false);
+                animator.SetBool("Jumping", false);
+
+            }
         }
     }
 
@@ -90,8 +84,8 @@ public class Player : MonoBehaviour
 
     void Fall()
     {
-        // Verifica si el personaje está cayendo
-        if (rig.velocity.y < 0)
+        // Verifica si el personaje esta cayendo
+        if (rig.velocity.y < 0 && !isGrounded)
         {
             animator.SetBool("Jumping", false);
             animator.SetBool("Falling", true);

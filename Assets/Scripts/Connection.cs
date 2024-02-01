@@ -26,7 +26,7 @@ public class Connection : MonoBehaviourPunCallbacks
         PhotonNetwork.JoinOrCreateRoom("room1", options, TypedLobby.Default); // Creamos o nos unimos a la sala
     }
 
-    // Al unirnos imprimimos nombre de la sala y nº de players
+    // Al unirnos imprimimos nombre de la sala y nï¿½ de players
     public override void OnJoinedRoom()
     {
         Debug.Log("Conectado a la sala " + PhotonNetwork.CurrentRoom.Name);
