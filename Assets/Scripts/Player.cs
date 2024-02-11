@@ -8,8 +8,13 @@ public class Player : MonoBehaviour
     public float speed;
     private Rigidbody2D rig;
 
+    // Variables disparo
+    [SerializeField] private Transform shootHandler;
+    [SerializeField] private GameObject bullet;
+
     // Variables animacion
     private Animator animator;
+    public bool facingRight = true;
 
     // Variables salto
     public float jumpForce;
@@ -34,29 +39,40 @@ public class Player : MonoBehaviour
             movePlayer();
             Jump();
             Fall();
-            velocity = rig.velocity.y;
+            Shoot();
         }
-
     }
 
     void movePlayer()
     {
-        rig.velocity = (transform.right * speed * Input.GetAxisRaw("Horizontal")) + (transform.up * rig.velocity.y);
+        float moveInput = Input.GetAxisRaw("Horizontal");
+        rig.velocity = (transform.right * speed * moveInput * Time.deltaTime) + (transform.up * rig.velocity.y);
 
         bool isRunning = Mathf.Abs(rig.velocity.x) > 0.1f;
         animator.SetBool("Running", isRunning);
 
-        if (rig.velocity.x > 0.1f)
-            GetComponent<PhotonView>().RPC("RotateSprite", RpcTarget.All, false);
-        else if (rig.velocity.x < 0.1f)
-            GetComponent<PhotonView>().RPC("RotateSprite", RpcTarget.All, true);
+        if (moveInput > 0 && !facingRight)
+        {
+            Flip();
+        }
+        else if (moveInput < 0 && facingRight)
+        {
+            Flip();
+        }
+    }
+
+    void Flip()
+    {
+        facingRight = !facingRight;
+        GetComponent<PhotonView>().RPC("RotateSprite", RpcTarget.All, facingRight);
     }
 
     [PunRPC]
-    private void RotateSprite(bool rotate)
+    private void RotateSprite(bool facingRight)
     {
-        GetComponent<SpriteRenderer>().flipX = rotate;
+        GetComponent<SpriteRenderer>().flipX = !facingRight;
     }
+
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
@@ -84,7 +100,6 @@ public class Player : MonoBehaviour
 
     void Fall()
     {
-        // Verifica si el personaje esta cayendo
         if (rig.velocity.y < 0 && !isGrounded)
         {
             animator.SetBool("Jumping", false);
@@ -93,6 +108,19 @@ public class Player : MonoBehaviour
         else
         {
             animator.SetBool("Falling", false);
+        }
+    }
+
+    public void Die()
+    {
+        Destroy(gameObject);
+    }
+
+    void Shoot()
+    {
+        if (Input.GetKeyDown(KeyCode.N))
+        {
+            Destroy(PhotonNetwork.Instantiate(bullet.name, shootHandler.position, shootHandler.rotation), 3f);
         }
     }
 }
